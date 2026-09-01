@@ -1,0 +1,1 @@
+Initial release of `towncrier-fragment-check`, a pre-commit hook and CLI that fails when a branch adds no towncrier changelog fragment.

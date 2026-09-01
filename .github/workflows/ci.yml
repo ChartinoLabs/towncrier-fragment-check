@@ -1,0 +1,124 @@
+---
+name: CI
+on: # yamllint disable-line rule:truthy
+  push:
+  pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check-changelog-fragment:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          # The check diffs the branch against its base, so it needs history.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+      # Dogfooding: the project checks its own pull requests with its own CLI.
+      # GITHUB_BASE_REF is set automatically on pull requests, so no base
+      # branch needs to be configured here.
+      - name: Check for a changelog fragment
+        run: uv run towncrier-fragment-check
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+      - name: Format with ruff
+        run: uv run ruff format --check .
+  lint-python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+      - name: Lint with ruff
+        run: uv run ruff check .
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+      - name: Security scan with bandit
+        run: uv run bandit -r src/
+  check-complexity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+      - name: Check code complexity with xenon
+        run: uv run xenon --max-absolute B --max-modules B --max-average A src/
+  check-types:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check type hints with ty
+        run: uv run ty check .
+  unit-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          # The test suite builds real git repositories and needs a usable
+          # git identity, which the runner already provides.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run unit tests with pytest
+        run: uv run pytest --cov=towncrier_fragment_check --cov-report=term-missing
+  unit-test-lowest-deps:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+      - name: Install with lowest direct dependency versions
+        run: uv sync --group dev --resolution lowest-direct
+      - name: Run unit tests with lowest dependency versions
+        run: uv run pytest

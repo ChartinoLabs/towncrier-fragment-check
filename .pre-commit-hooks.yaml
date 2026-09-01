@@ -1,0 +1,8 @@
+---
+- id: towncrier-fragment-check
+  name: towncrier fragment check
+  description: Fail when the branch does not add a towncrier changelog fragment.
+  entry: towncrier-fragment-check
+  language: python
+  pass_filenames: false
+  always_run: true

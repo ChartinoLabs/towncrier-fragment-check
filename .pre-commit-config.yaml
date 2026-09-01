@@ -1,0 +1,81 @@
+---
+default_install_hook_types: [pre-commit, pre-push]
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+        types: [python]
+      - id: check-toml
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: forbid-submodules
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      - id: pretty-format-json
+        args: [--no-sort-keys, --indent=4]
+      - id: requirements-txt-fixer
+      - id: trailing-whitespace
+  # Local hooks run the project's pinned tooling via `uv run`, so versions
+  # always match pyproject.toml. This assumes a uv-managed environment.
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: ty
+        name: ty
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -r src/
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: xenon
+        name: xenon
+        entry: uv run xenon --max-absolute=B --max-modules=B --max-average=A src/
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+      # Dogfooding: the project checks its own branches with its own hook.
+      - id: towncrier-fragment-check
+        name: towncrier fragment check
+        entry: uv run towncrier-fragment-check --skip-new-branch
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

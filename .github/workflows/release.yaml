@@ -1,0 +1,112 @@
+---
+name: Release
+on: # yamllint disable-line rule:truthy
+  push:
+    tags:
+      - "v*.*.*"
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# There is deliberately no PyPI publish job. pre-commit installs hooks straight
+# from a git tag, so a tagged GitHub release is all a consumer needs. Publishing
+# to PyPI can be added later without changing how the hook is consumed.
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate tag format
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: Tag '$TAG' does not match semver format v<MAJOR>.<MINOR>.<PATCH>"
+            echo "Expected format: v0.1.0, v1.2.3, etc."
+            exit 1
+          fi
+          echo "Tag '$TAG' is valid semver format"
+  test:
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run unit tests with pytest
+        run: uv run pytest --cov=towncrier_fragment_check --cov-report=term-missing
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Ensure tag is available locally
+        run: |
+          git fetch origin tag ${{ github.ref_name }} --no-tags --force
+          git describe --tags --exact-match HEAD
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+      - name: Build package
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ github.ref_name }}
+        run: |
+          export SETUPTOOLS_SCM_PRETEND_VERSION="${SETUPTOOLS_SCM_PRETEND_VERSION#v}"
+          uv build
+      - name: Verify package version matches tag
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          PKG_VERSION=$(ls dist/towncrier_fragment_check-*.whl \
+            | sed 's|.*/towncrier_fragment_check-||;s|-.*||')
+          TAG_VERSION="${TAG_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match package version ($PKG_VERSION)"
+            exit 1
+          fi
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Extract changelog for this version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          awk "/^## ${VERSION} /{found=1; next} /^## /{if(found) exit} found" \
+            CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "No changelog entry found for version ${VERSION}" > release_notes.md
+          fi
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --title "$TAG_NAME" \
+            --notes-file release_notes.md \
+            dist/*

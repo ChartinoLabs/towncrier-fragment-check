@@ -1,0 +1,155 @@
+[project]
+name = "towncrier-fragment-check"
+dynamic = ["version"]
+description = "Pre-commit hook and CLI that fails when a branch adds no towncrier changelog fragment."
+readme = "README.md"
+authors = [
+    { name = "Christopher Hart", email = "christopherjhart95@gmail.com" },
+]
+requires-python = ">=3.10"
+license = "Apache-2.0"
+keywords = [
+    "towncrier",
+    "changelog",
+    "pre-commit",
+    "news fragment",
+    "release notes",
+]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+dependencies = [
+    "towncrier>=25.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ChartinoLabs/towncrier-fragment-check"
+Repository = "https://github.com/ChartinoLabs/towncrier-fragment-check"
+Changelog = "https://github.com/ChartinoLabs/towncrier-fragment-check/blob/main/CHANGELOG.md"
+
+[project.scripts]
+towncrier-fragment-check = "towncrier_fragment_check.cli:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+# Allow building from a checkout that has no tags yet (for example, a fresh
+# clone used only to run the test suite).
+fallback_version = "0.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/towncrier_fragment_check"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+# __main__.py is a two line shim around cli.main. It is exercised end to end by
+# a subprocess test rather than by in-process coverage.
+omit = ["*/__main__.py"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "W",  # pycodestyle warnings
+    "C90",# flake8-mccabe complexity
+    "N",  # pep8-naming
+    "UP", # pyupgrade
+    "ANN",# flake8-annotations
+    "D",  # pydocstyle
+    "T",  # flake8-print
+    "PL", # Pylint
+    "A",  # flake8-builtins
+    "ARG",  # flake8-unused-arguments
+    "BLE",  # flake8-blind-except
+    "C4",  # flake8-comprehensions
+    "ERA",  # eradicate
+    "PERF",  # Perflint
+    "PGH",  # pygrep-hooks
+    "PIE",  # flake8-pie
+    "PT",  # flake8-pytest-style
+    "RUF",  # Ruff-specific rules
+    "SIM",  # flake8-simplify
+    "TRY",  # tryceratops
+    "DTZ",  # flake8-datetimez
+    "EXE",  # flake8-executable
+    "FA",  # flake8-future-annotations
+    "FBT",  # flake8-boolean-trap
+    "FLY",  # flynt
+    "FURB",  # refurb
+    "G",  # flake8-logging-format
+    "LOG",  # flake8-logging
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "RSE",  # flake8-raise
+    "SLOT",  # flake8-slots
+    "TID",  # flake8-tidy-imports
+    "S",  # flake8-bandit
+]
+
+# Literal expected values and pytest assertions are valid in tests.
+per-file-ignores = { "tests/*.py" = ["PLR2004", "S101"] }
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+[tool.towncrier]
+directory = "changes"
+filename = "CHANGELOG.md"
+title_format = "## {version} - {project_date}"
+issue_format = "[#{issue}](https://github.com/ChartinoLabs/towncrier-fragment-check/pull/{issue})"
+underlines = ["", "", ""]
+
+[[tool.towncrier.type]]
+directory = "added"
+name = "Added"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "changed"
+name = "Changed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "fixed"
+name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "internal"
+name = "Internal"
+showcontent = true
+
+[dependency-groups]
+dev = [
+    "bandit==1.9.4",
+    "pre-commit==4.6.2",
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.16.5",
+    "towncrier==25.8.0",
+    "ty==0.0.77",
+    "xenon==0.9.3",
+]
