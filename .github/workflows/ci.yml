@@ -46,16 +46,6 @@ jobs:
           python-version: "3.13"
       - name: Lint with ruff
         run: uv run ruff check .
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-python-uv
-        with:
-          python-version: "3.13"
-      - name: Security scan with bandit
-        run: uv run bandit -r src/
   check-complexity:
     runs-on: ubuntu-latest
     steps:

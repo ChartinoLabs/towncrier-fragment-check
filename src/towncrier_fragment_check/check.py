@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 import shutil
-import subprocess  # nosec B404
+import subprocess
 import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -152,9 +152,9 @@ def _run_git(arguments: Sequence[str], cwd: Path) -> subprocess.CompletedProcess
         The completed process, including captured stdout and stderr.
     """
     command = [_git_executable(), *arguments]
-    # S603/B603: the command is a fixed argument list built from constants,
+    # S603: the command is a fixed argument list built from constants,
     # never a shell string, and the executable is resolved with shutil.which.
-    return subprocess.run(  # noqa: S603  # nosec B603
+    return subprocess.run(  # noqa: S603
         command,
         cwd=cwd,
         capture_output=True,
@@ -282,9 +282,9 @@ def run_towncrier(
         A tuple of the towncrier exit code and its combined output.
     """
     command = towncrier_command(project, compare_ref, options)
-    # S603/B603: the command is a fixed argument list built from constants and
+    # S603: the command is a fixed argument list built from constants and
     # the running interpreter, never a shell string.
-    result = subprocess.run(  # noqa: S603  # nosec B603
+    result = subprocess.run(  # noqa: S603
         command,
         cwd=toplevel,
         capture_output=True,

@@ -53,12 +53,6 @@ repos:
         types: [python]
         pass_filenames: false
         always_run: true
-      - id: bandit
-        name: bandit
-        entry: uv run bandit -r src/
-        language: system
-        pass_filenames: false
-        always_run: true
       - id: xenon
         name: xenon
         entry: uv run xenon --max-absolute=B --max-modules=B --max-average=A src/
