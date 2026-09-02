@@ -7,9 +7,10 @@ on: # yamllint disable-line rule:truthy
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-# There is deliberately no PyPI publish job. pre-commit installs hooks straight
-# from a git tag, so a tagged GitHub release is all a consumer needs. Publishing
-# to PyPI can be added later without changing how the hook is consumed.
+# pre-commit installs the hook straight from the git tag, so the GitHub Release
+# is what hook consumers need. The PyPI publish at the end serves CLI users
+# (uvx, pipx, pip) and runs through Trusted Publishing (OIDC): no API token is
+# stored, and the pypi environment only allows deployments from v* tags.
 jobs:
   validate-tag:
     runs-on: ubuntu-latest
@@ -110,3 +111,21 @@ jobs:
             --title "$TAG_NAME" \
             --notes-file release_notes.md \
             dist/*
+  publish:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/towncrier-fragment-check
+    # The id-token permission lets the runner mint a short-lived OIDC token that
+    # PyPI verifies against the trusted publisher registered for this workflow.
+    permissions:
+      id-token: write
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

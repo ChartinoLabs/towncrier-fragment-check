@@ -119,13 +119,14 @@ jobs:
           fetch-depth: 0
       - name: Check for a changelog fragment
         run: >-
-          uvx --from
-          git+https://github.com/ChartinoLabs/towncrier-fragment-check@v0.1.0
-          towncrier-fragment-check --project packages/api --project apps/web
+          uvx towncrier-fragment-check==0.1.0
+          --project packages/api --project apps/web
 ```
 
-`pipx run` works the same way. If pre-commit already runs in CI, the configured
-hook can be reused instead:
+The package is published to [PyPI](https://pypi.org/project/towncrier-fragment-check/),
+so `pipx run towncrier-fragment-check` and `pip install towncrier-fragment-check`
+work the same way. If pre-commit already runs in CI, the configured hook can be
+reused instead:
 
 ```yaml
       - run: pre-commit run --hook-stage pre-push towncrier-fragment-check --all-files
