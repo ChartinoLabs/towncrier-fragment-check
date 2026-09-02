@@ -20,7 +20,6 @@ from tests.conftest import (
 )
 from towncrier_fragment_check.check import (
     BASE_REF_HELP,
-    ENV_COMPARE_WITH,
     ENV_GITHUB_BASE_REF,
     ENV_PRE_COMMIT_FROM_REF,
     EXIT_FAILURE,
@@ -223,22 +222,6 @@ def test_no_diff_against_base_passes(
 
     assert result.exit_code == EXIT_OK
     assert ".: no fragment required" in result.output
-
-
-def test_compare_with_environment_variable(
-    single_project_repo: GitRepository, run_cli: CliRunner
-) -> None:
-    """TOWNCRIER_COMPARE_WITH is used when the flag is absent."""
-    single_project_repo.add_fragment()
-    single_project_repo.commit("Add fragment")
-
-    result = run_cli(
-        [],
-        cwd=single_project_repo.path,
-        environment={ENV_COMPARE_WITH: MAIN_BRANCH},
-    )
-
-    assert result.exit_code == EXIT_OK
 
 
 def test_github_base_ref_is_prefixed_with_origin(

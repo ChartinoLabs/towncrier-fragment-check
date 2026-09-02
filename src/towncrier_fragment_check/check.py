@@ -310,12 +310,9 @@ def parse_found_fragments(output: str) -> list[Path]:
         if line.strip() == FOUND_HEADER:
             in_found_block = True
             continue
-        if not in_found_block:
-            continue
-        match = FOUND_ENTRY_PATTERN.match(line)
-        if match is None:
-            break
-        fragments.append(Path(match.group("path")))
+        match = FOUND_ENTRY_PATTERN.match(line) if in_found_block else None
+        if match is not None:
+            fragments.append(Path(match.group("path")))
     return fragments
 
 
