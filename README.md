@@ -25,8 +25,7 @@ fragment discovery to it. These are the gaps it closes around that call:
   inside `packages/api/` therefore looks for
   `packages/api/packages/api/changes/...` and never matches. This wrapper always
   runs towncrier with the git toplevel as the working directory and passes
-  `--dir` and `--config` relative to that root, which works correctly. Verified
-  against towncrier 25.8.0.
+  `--dir` and `--config` relative to that root, which works correctly.
 - **Base branch resolution.** The comparison ref is resolved from the flag, then
   the environment, then the usual remote defaults, skipping any candidate git
   cannot resolve. On a GitHub pull request the base branch is picked up from
