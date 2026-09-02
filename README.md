@@ -1,51 +1,27 @@
 # towncrier-fragment-check
 
 A [pre-commit](https://pre-commit.com) hook and CLI that fails when a branch does
-not add a [towncrier](https://towncrier.readthedocs.io) changelog fragment. It is
-a thin wrapper around `towncrier check` that keeps the same behaviour you already
-know, and adds the pieces that a real repository tends to need: several towncrier
-projects in one monorepo, correct results when the check is invoked from a
-subdirectory, a base branch that is resolved the way CI and pre-commit expect,
-and a hard failure on fragment files that were created but left empty.
+not add a [towncrier](https://towncrier.readthedocs.io) changelog fragment. It
+wraps `towncrier check` and fills the gaps around it.
 
-## Why not just `towncrier check`?
+## What it adds to `towncrier check`
 
-`towncrier check` is the right tool and this project delegates all of the actual
-fragment discovery to it. These are the gaps it closes around that call:
-
-- **Monorepos.** `towncrier check` checks one project per invocation, but a
-  monorepo often holds several towncrier projects, each with its own fragment
-  directory, changelog, and release cadence, and a single pull request may
-  touch any of them. Pass `--project` once per towncrier project to check them
-  all in one run, and choose whether a fragment in any one project is enough
-  (`--require any`, the default) or every project needs its own
-  (`--require all`).
-- **Subdirectory safety.** `towncrier check` resolves the repository-relative
-  paths that git reports against the process working directory. Running it
-  inside `packages/api/` therefore looks for
-  `packages/api/packages/api/changes/...` and never matches. This wrapper always
-  runs towncrier with the git toplevel as the working directory and passes
-  `--dir` and `--config` relative to that root, which works correctly.
-- **Base branch resolution.** The comparison ref is resolved from the flag, then
-  the environment, then the usual remote defaults, skipping any candidate git
-  cannot resolve. On a GitHub pull request the base branch is picked up from
-  `GITHUB_BASE_REF` with no configuration.
-- **Empty fragments.** A fragment file that exists but contains nothing, or only
-  whitespace, satisfies `towncrier check` and produces an empty release note.
-  This wrapper reads every fragment towncrier found and fails on the empty ones.
-  Use `--allow-empty` to opt out.
-- **New branches under pre-commit.** At the pre-push stage, pre-commit reports an
-  all-zero `PRE_COMMIT_FROM_REF` for a branch that does not exist on the remote
-  yet. `--skip-new-branch` exits 0 in that case, which is useful when fragment
-  file names embed a pull request number that does not exist before the first
-  push. CI remains the authoritative gate.
+- **Monorepos.** Check several towncrier projects in one run with `--project`,
+  passing when any one of them has a fragment (`--require any`) or only when
+  they all do (`--require all`).
+- **Subdirectories.** `towncrier check` resolves git's repository-relative paths
+  against the working directory, so it never matches when run inside
+  `packages/api/`. This tool always runs it from the git toplevel.
+- **Base branch.** Resolved from the flag, the environment, or `origin/main`,
+  whichever git can find first. GitHub pull requests need no configuration.
+- **Empty fragments.** A blank fragment file satisfies `towncrier check` and
+  yields a blank release note. It fails here unless you pass `--allow-empty`.
+- **New branches.** `--skip-new-branch` passes a branch's first push, when the
+  pull request number that fragment names often embed does not exist yet.
 
 ## Installation
 
-Add the hook to `.pre-commit-config.yaml`:
-
 ```yaml
----
 default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/ChartinoLabs/towncrier-fragment-check
@@ -55,35 +31,19 @@ repos:
         stages: [pre-push]
 ```
 
-Then install both hook types:
+Then run `pre-commit install`.
 
-```bash
-pre-commit install
-```
+The check describes a whole branch, not one commit, so `pre-push` is the
+recommended stage: it asks once, when the branch becomes visible to reviewers.
+To run at the `pre-commit` stage instead, set `stages: [pre-commit]` and pass
+`args: [--staged]` so fragments staged in the current commit count.
 
-The `pre-push` stage is the recommended default. The check is a statement about a
-whole branch rather than a single commit, so asking for a fragment on the first
-commit of a branch is noisy, and fragment file names often embed a pull request
-number that does not exist yet at that point. Running at push time asks once, at
-the moment the branch becomes visible to reviewers.
+### Monorepos
 
-To run it at the `pre-commit` stage instead, pass `--staged` so that fragments
-staged in the current commit are counted:
-
-```yaml
-      - id: towncrier-fragment-check
-        args: [--staged]
-```
-
-### Monorepo
-
-In a monorepo, each independently released package or app typically has its
-own towncrier configuration, fragment directory, and changelog. One invocation
-of the hook can cover all of them. Point it at each towncrier project with
-`--project`. A project is a directory relative to the git toplevel, optionally
-followed by `:` and the path to its towncrier configuration file, which is
-needed when the configuration does not live in that directory's
-`pyproject.toml` or `towncrier.toml`:
+Each independently released package in a monorepo usually has its own towncrier
+configuration, fragment directory, and changelog. Name each one with
+`--project DIR`, or `--project DIR:CONFIG` when the configuration is not in
+that directory's `pyproject.toml` or `towncrier.toml`:
 
 ```yaml
       - id: towncrier-fragment-check
@@ -93,22 +53,18 @@ needed when the configuration does not live in that directory's
           - packages/api
           - --project
           - apps/web:apps/web/towncrier.toml
-          - --require
-          - any
 ```
 
-With `--require any`, a fragment in either project satisfies the check, which
-suits a pull request that changes only one package. Use `--require all` when
-every project must carry its own fragment, for example when the projects are
-released together.
+By default a fragment in any one project passes, which suits a pull request that
+changes only one package. Add `--require all` when every project must carry its
+own.
 
 ## Continuous integration
 
-On a GitHub pull request the base branch is available as `GITHUB_BASE_REF`, so no
-base branch configuration is needed. A full history is required for the diff:
+On a GitHub pull request the base branch comes from `GITHUB_BASE_REF`. Check out
+the full history so the diff is available:
 
 ```yaml
----
 jobs:
   check-changelog-fragment:
     if: github.event_name == 'pull_request'
@@ -117,56 +73,45 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Check for a changelog fragment
-        run: >-
-          uvx towncrier-fragment-check==0.1.0
-          --project packages/api --project apps/web
+      - run: uvx towncrier-fragment-check==0.1.0 --project packages/api --project apps/web
 ```
 
-The package is published to [PyPI](https://pypi.org/project/towncrier-fragment-check/),
-so `pipx run towncrier-fragment-check` and `pip install towncrier-fragment-check`
-work the same way. If pre-commit already runs in CI, the configured hook can be
-reused instead:
-
-```yaml
-      - run: pre-commit run --hook-stage pre-push towncrier-fragment-check --all-files
-```
+The package is on [PyPI](https://pypi.org/project/towncrier-fragment-check/), so
+`pipx run` and `pip install` work too. If pre-commit already runs in CI, reuse
+the configured hook with
+`pre-commit run --hook-stage pre-push towncrier-fragment-check --all-files`.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--project DIR[:CONFIG]` | Towncrier project to check. Repeat it once per project in a monorepo that holds several towncrier projects. `DIR` is relative to the git toplevel, and the optional `CONFIG` is a path to a `towncrier.toml` or `pyproject.toml`, also relative to the toplevel. Defaults to a single project at the repository root with no explicit config, which lets towncrier auto-discover its configuration. |
+| `--project DIR[:CONFIG]` | Towncrier project to check, relative to the git toplevel. Repeat once per project. Defaults to the repository root. |
 | `--require {any,all}` | Pass rule across projects. Default `any`. |
 | `--compare-with BRANCH` | Base ref to diff against. |
-| `--staged` | Include staged files, for use at the `pre-commit` stage. |
+| `--staged` | Include staged files, for the `pre-commit` stage. |
 | `--allow-empty` | Do not fail on empty or whitespace-only fragments. |
 | `--skip-new-branch` | Exit 0 when `PRE_COMMIT_FROM_REF` is all zeros. |
-| `--verbose`, `-v` | Always print the full towncrier output for every project. |
+| `--verbose`, `-v` | Always print towncrier's full output. |
 | `--version` | Print the version and exit. |
 
-## How the base branch is resolved
+## Base branch resolution
 
-Candidates are tried in this order, and any candidate that `git rev-parse
---verify` cannot resolve is skipped:
+The first candidate git can resolve wins:
 
 1. `--compare-with`
 2. `TOWNCRIER_COMPARE_WITH`
 3. `GITHUB_BASE_REF`, prefixed with `origin/` when it contains no `/`
 4. `origin/main`
 5. `origin/master`
-6. towncrier's own default, by passing nothing
-
-If none of those produce a usable ref, the check exits 1 and asks you to fetch
-the base branch or pass `--compare-with`.
+6. towncrier's own default
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | The check passed. |
-| `1` | The check failed: no fragment, an empty fragment, or no resolvable base ref. |
-| `2` | Usage error, such as an unknown option or an invalid `--require` value. |
+| `0` | Passed. |
+| `1` | No fragment, an empty fragment, or no resolvable base ref. |
+| `2` | Usage error. |
 
 ## Development
 
