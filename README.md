@@ -13,10 +13,13 @@ and a hard failure on fragment files that were created but left empty.
 `towncrier check` is the right tool and this project delegates all of the actual
 fragment discovery to it. These are the gaps it closes around that call:
 
-- **Multiple projects.** `towncrier check` checks one project per invocation.
-  Pass `--project` more than once to check several, and choose whether a
-  fragment in any one project is enough (`--require any`, the default) or every
-  project needs its own (`--require all`).
+- **Monorepos.** `towncrier check` checks one project per invocation, but a
+  monorepo often holds several towncrier projects, each with its own fragment
+  directory, changelog, and release cadence, and a single pull request may
+  touch any of them. Pass `--project` once per towncrier project to check them
+  all in one run, and choose whether a fragment in any one project is enough
+  (`--require any`, the default) or every project needs its own
+  (`--require all`).
 - **Subdirectory safety.** `towncrier check` resolves the repository-relative
   paths that git reports against the process working directory. Running it
   inside `packages/api/` therefore looks for
@@ -75,9 +78,13 @@ staged in the current commit are counted:
 
 ### Monorepo
 
-Point the hook at each towncrier project. A project is a directory relative to
-the git toplevel, optionally followed by `:` and the path to its towncrier
-configuration file:
+In a monorepo, each independently released package or app typically has its
+own towncrier configuration, fragment directory, and changelog. One invocation
+of the hook can cover all of them. Point it at each towncrier project with
+`--project`. A project is a directory relative to the git toplevel, optionally
+followed by `:` and the path to its towncrier configuration file, which is
+needed when the configuration does not live in that directory's
+`pyproject.toml` or `towncrier.toml`:
 
 ```yaml
       - id: towncrier-fragment-check
@@ -91,8 +98,10 @@ configuration file:
           - any
 ```
 
-With `--require any`, a fragment in either project satisfies the check. Use
-`--require all` when every project must carry its own fragment.
+With `--require any`, a fragment in either project satisfies the check, which
+suits a pull request that changes only one package. Use `--require all` when
+every project must carry its own fragment, for example when the projects are
+released together.
 
 ## Continuous integration
 
@@ -127,7 +136,7 @@ hook can be reused instead:
 
 | Option | Description |
 |---|---|
-| `--project DIR[:CONFIG]` | Towncrier project to check. Repeatable. `DIR` is relative to the git toplevel, and the optional `CONFIG` is a path to a `towncrier.toml` or `pyproject.toml`, also relative to the toplevel. Defaults to a single project at the repository root with no explicit config, which lets towncrier auto-discover its configuration. |
+| `--project DIR[:CONFIG]` | Towncrier project to check. Repeat it once per project in a monorepo that holds several towncrier projects. `DIR` is relative to the git toplevel, and the optional `CONFIG` is a path to a `towncrier.toml` or `pyproject.toml`, also relative to the toplevel. Defaults to a single project at the repository root with no explicit config, which lets towncrier auto-discover its configuration. |
 | `--require {any,all}` | Pass rule across projects. Default `any`. |
 | `--compare-with BRANCH` | Base ref to diff against. |
 | `--staged` | Include staged files, for use at the `pre-commit` stage. |
