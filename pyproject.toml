@@ -147,7 +147,7 @@ dev = [
     "pre-commit==4.6.2",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.16.9",
+    "ruff==0.16.10",
     "towncrier==26.9.0",
     "ty==0.0.84",
     "xenon==0.9.3",
